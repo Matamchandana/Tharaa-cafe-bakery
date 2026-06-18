@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tharaa Café & Bakery</title>
+    <style>
+        :root { --primary: #6f4e37; --accent: #b85c38; --bg: #faf8f6; --text: #4a3e3d; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 20px; background: var(--bg); color: var(--text); }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e8dec9; padding-bottom: 20px; margin-bottom: 30px; }
+        h1 { margin: 0; color: var(--primary); /* This applies the sleek calligraphy styling */font-family: 'Alex Brush', cursive, sans-serif; font-size: 3.5rem; font-weight: 400;letter-spacing: 1px;}
+        .container { display: flex; gap: 40px; max-width: 1300px; margin: 0 auto; }
+        #menu-grid { flex: 2; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        
+        /* Smooth, Beautiful Animations */
+        .card { background: white; border: 1px solid #ebdcb9; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(111,78,55,0.05); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease; }
+        .card:hover { transform: translateY(-8px); box-shadow: 0 12px 24px rgba(111,78,55,0.12); }
+        .card-img { width: 100%; height: 180px; object-fit: cover; transition: transform 0.5s ease; }
+        .card:hover .card-img { transform: scale(1.05); }
+        .card-body { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; }
+        
+        .badge { font-size: 0.75rem; text-transform: uppercase; color: white; background: var(--primary); font-weight: bold; padding: 4px 8px; border-radius: 20px; width: fit-content; margin-bottom: 10px; }
+        .card h3 { margin: 5px 0 10px 0; color: #5c4033; font-size: 1.25rem; }
+        .card p { font-size: 0.9rem; color: #666; line-height: 1.4; flex-grow: 1; }
+        .price-row { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        .price { font-size: 1.3em; font-weight: bold; color: var(--accent); }
+        
+        button { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s, transform 0.1s; }
+        button:hover { background: #5c4033; }
+        button:active { transform: scale(0.97); }
+        
+        #cart-panel { flex: 1; background: white; border: 1px solid #ebdcb9; border-radius: 12px; padding: 25px; height: fit-content; box-shadow: 0 4px 15px rgba(0,0,0,0.02); position: sticky; top: 20px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #777; }
+        .input-group input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ebdcb9; border-radius: 6px; font-size: 0.95rem; }
+        .input-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(111,78,55,0.1); }
+        #cart-items { margin: 20px 0; border-top: 1px solid #eee; padding-top: 15px; }
+        .cart-line { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; background: #fffbf7; padding: 8px; border-radius: 6px; border: 1px dashed #ebdcb9; }
+        #cart-total { font-weight: bold; font-size: 1.2em; text-align: right; margin-top: 15px; color: var(--accent); border-top: 2px solid #eee; padding-top: 15px; }
+        .checkout-btn { background: var(--accent); margin-top: 15px; width: 100%; padding: 12px; font-size: 1rem; }
+        .checkout-btn:hover { background: #a04f2f; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🧁 Tharaa Café & Bakery</h1>
+    <div id="cart-status" style="font-weight: bold; background: #fff; padding: 8px 16px; border-radius: 20px; border: 1px solid #ebdcb9;">Basket: 0 items</div>
+</header>
+
+<div class="container">
+    <div id="menu-grid"></div>
+
+    <div id="cart-panel">
+        <h3>Your Order Box</h3>
+        <div class="input-group">
+            <label>Customer Name</label>
+            <input type="text" id="custName" value="Alex Baker">
+        </div>
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="custEmail" value="alex@example.com">
+        </div>
+
+        <div id="cart-items">Your box is currently empty. Add treats from the left!</div>
+        <div id="cart-total">Total: $0.00</div>
+        <button class="checkout-btn" onclick="submitOrder()">Place Bakery Order</button>
+    </div>
+</div>
+
+<script>
+    const API_BASE = "http://localhost:8080/api";
+    let catalog = [];
+    let applicationCart = [];
+
+    window.addEventListener("DOMContentLoaded", fetchInventory);
+
+    async function fetchInventory() {
+        try {
+            const response = await fetch(`${API_BASE}/products`);
+            catalog = await response.json();
+            displayMenu();
+        } catch (err) {
+            document.getElementById("menu-grid").innerHTML = `<p style="color:red; font-weight:bold;">Error connecting to Java Backend API: ${err.message}</p>`;
+        }
+    }
+
+    function displayMenu() {
+        const grid = document.getElementById("menu-grid");
+        grid.innerHTML = catalog.map(item => `
+            <div class="card">
+                <div style="overflow:hidden;">
+                    <img class="card-img" src="${item.imageUrl}" alt="${item.name}">
+                </div>
+                <div class="card-body">
+                    <span class="badge">${item.category}</span>
+                    <h3>${item.name}</h3>
+                    <p>${item.description}</p>
+                    <div class="price-row">
+                        <div class="price">$${item.price.toFixed(2)}</div>
+                        <button onclick="addItemToBox(${item.id})">Add to Box</button>
+                    </div>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function addItemToBox(productId) {
+        const itemMatch = applicationCart.find(i => i.productId === productId);
+        if (itemMatch) {
+            itemMatch.quantity += 1;
+        } else {
+            applicationCart.push({ productId: productId, quantity: 1 });
+        }
+        refreshCartDisplay();
+    }
+
+    function refreshCartDisplay() {
+        const countStatus = document.getElementById("cart-status");
+        const itemsListDiv = document.getElementById("cart-items");
+        const totalDiv = document.getElementById("cart-total");
+
+        const unitsCount = applicationCart.reduce((total, item) => total + item.quantity, 0);
+        countStatus.innerText = `Basket: ${unitsCount} item${unitsCount === 1 ? '' : 's'}`;
+
+        if (applicationCart.length === 0) {
+            itemsListDiv.innerHTML = "Your box is currently empty. Add treats from the left!";
+            totalDiv.innerText = "Total: $0.00";
+            return;
+        }
+
+        let dynamicCost = 0;
+        let htmlBuffer = "";
+
+        applicationCart.forEach(cartItem => {
+            const productInfo = catalog.find(p => p.id === cartItem.productId);
+            const lineCost = productInfo.price * cartItem.quantity;
+            dynamicCost += lineCost;
+
+            htmlBuffer += `
+                <div class="cart-line">
+                    <span><strong>${productInfo.name}</strong> (x${cartItem.quantity})</span>
+                    <span>$${lineCost.toFixed(2)}</span>
+                </div>
+            `;
+        });
+
+        itemsListDiv.innerHTML = htmlBuffer;
+        totalDiv.innerText = `Total: $${dynamicCost.toFixed(2)}`;
+    }
+
+    async function submitOrder() {
+        if (applicationCart.length === 0) return alert("Please add items to your cart first!");
+        
+        const payload = {
+            name: document.getElementById("custName").value.trim(),
+            email: document.getElementById("custEmail").value.trim(),
+            items: applicationCart
+        };
+
+        try {
+            const response = await fetch(`${API_BASE}/checkout`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const message = await response.text();
+            alert(message);
+            applicationCart = [];
+            refreshCartDisplay();
+        } catch (error) {
+            alert("Checkout transaction failed: " + error.message);
+        }
+    }
+</script>
+</body>
+</html>
